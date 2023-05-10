@@ -1,0 +1,122 @@
+from cryptography.fernet import Fernet
+import string
+import secrets
+
+alphabet = (string.ascii_letters + string.digits + string.punctuation)
+
+class PasswordManager:
+
+    def __init__(self):
+        self.key = None
+        self.password_file = None
+        self.password_dict = {}
+
+    def create_key(self, path):
+        self.key = Fernet.generate_key()
+        with open(path, 'wb') as f:
+            f.write(self.key)
+
+    def load_key(self, path):
+        with open(path, 'rb') as f:
+            self.key = f.read()
+
+    def create_password_file(self, path, initial_values=None):
+        self.password_file = path
+
+        if initial_values is not None:
+            for key, value in initial_values.items():
+                self.add_password(key, value)
+
+
+
+    def load_password_file(self, path):
+        self.password_file = path
+
+        with open(path, 'r') as f:
+            for line in f:
+                site, encrypted = line.split(":")
+                self.password_dict[site] = Fernet(self.key).decrypt(encrypted.encode())
+
+    def add_password(self, site, password):
+        self.password_dict[site] = password
+
+        if self.password_file is not None:
+            with open(self.password_file, 'a') as f:
+                encrypted = Fernet(self.key).encrypt(password.encode())
+                f.write(site + ":" + encrypted.decode() + "\n")
+
+    def create_password(self, length):
+        password = ''.join(secrets.choice(alphabet) for _ in range(length))
+        return password
+
+    def get_password(self, site):
+        return self.password_dict[site]
+
+
+def main():
+
+
+    pm = PasswordManager()
+
+    print("""
+    (1) Create a new key
+    (2) Load an existing key
+    (3) Create a new password file
+    (4) Load a password file
+    (5) Add a password
+    (6) Retrieve a password
+    (7) Create Password
+    (8) Quit
+    """)
+
+    done = False
+
+    while not done:
+
+        choice = input("What would you like to do? ")
+        if choice == "1":
+            path = input("Enter new key name: ")
+            pm.create_key(path)
+        elif choice == "2":
+            path = input("Enter key name: ")
+            pm.load_key(path)
+        elif choice == "3":
+            path = input("Enter new password file name: ")
+            pm.create_password_file(path, password)
+        elif choice == "4":
+            path = input("Enter password file name:")
+            pm.load_password_file(path)
+        elif choice == "5":
+            site = input("Enter account: ")
+            choice = input("Would you like to generate a password for this account? (y/n): ")
+            if choice == "y":
+                length = int(input("Enter password length: "))
+                password = pm.create_password(length)
+                print(f"Your new password is {password}")
+                pm.add_password(site, password)
+            elif choice == "n":
+                password = input("Enter the password: ")
+                pm.add_password(site, password)
+            else:
+                print("Please choose y or n: ")
+        elif choice == "6":
+            site = input("Which account: ")
+            print(f"Password for {site} is {pm.get_password(site)}")
+        elif choice == "7":
+            length = int(input("Enter password length: "))
+            password = pm.create_password(length)
+            print(f"Your new password is {password}")
+            choice = input("Would you like to save this password? (y/n): ")
+            if choice == "y":
+                site = input("Enter account: ")
+                pm.add_password(site, password)
+            else:
+                print("Please choose another action:")
+        elif choice == "8":
+            done = True
+            Print("Quitting")
+        else:
+            print("Please choose a valid option")
+
+if __name__ == '__main__':
+    main()
